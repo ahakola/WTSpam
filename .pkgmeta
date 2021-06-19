@@ -1,1 +1,5 @@
 package-as: WTSpam
+
+ignore:
+  - LICENSE.md
+  - README.md
