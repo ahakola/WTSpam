@@ -1,0 +1,11 @@
+## Interface: 25001
+## Interface-Classic: 11307
+## Interface-BCC: 20501
+## Author: Gogh (Mirage Raceway EU) (BCClassic)
+## Title: WTSpam
+## Version: @project-version@
+## Notes: WTSpam - F#*& Boost Sellers! LFG is filled with "WTS Boost"-spam, lets get rid of it.
+## RequiredDeps:
+## SavedVariables: WTSpamDB
+
+Core.lua
