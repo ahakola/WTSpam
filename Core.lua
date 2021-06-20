@@ -199,6 +199,10 @@ local function ScrollList_Update()
 			end
 		end
 
+		if totalPoint <= 20 then
+			stopPoint = totalPoint
+		end
+
 		FauxScrollFrame_Update(f.list, #spamTable, 20, 16)
 
 	elseif selectedTab == 2 then
@@ -234,10 +238,14 @@ local function ScrollList_Update()
 			end
 		end
 
+		if totalPoint <= 20 then
+			stopPoint = totalPoint
+		end
+
 		FauxScrollFrame_Update(f.list, #IgnoreListNameTable, 20, 16)
 	end
 
-	local startPoint = totalPoint == 0 and 0 or stopPoint > 0 and entryOffset + 1 or entryOffset
+	local startPoint = totalPoint == 0 and 0 or stopPoint > entryOffset and entryOffset + 1 or 1
 	f.count:SetText("Showing " .. startPoint .. " - " .. stopPoint .. " / " .. totalPoint)
 end
 
@@ -329,6 +337,9 @@ f.ignore:SetPoint("RIGHT", f.remove, "LEFT")
 f.ignore:SetFrameStrata("FULLSCREEN")
 f.ignore:SetScript("OnClick", function(this, button, down)
 	local fullname = spamTable[f.selectedEntry] and spamTable[f.selectedEntry].playerName or false
+	if not strmatch(fullname, "%-[^|]+") then -- Check Realmname is part of the name
+		fullname = fullname .. "-MirageRaceway"
+	end
 	if fullname and f.selectedEntry > 0 and f.selectedEntry <= #spamTable then
 		if DEBUG then Debug("Ignore:", fullname) end
 		db.IgnoreList[fullname] = deepcopy(spamTable[f.selectedEntry]) -- Save to DB
@@ -379,6 +390,7 @@ b:SetScript("OnClick", function(this, button, down)
 	if f:IsShown() then
 		f:Hide()
 	else
+		PanelTemplates_SetTab(f, 1)
 		f:Show()
 		ScrollList_Update()
 
@@ -479,81 +491,100 @@ SLASH_CHATCATCHER1 = "/wts"
 SLASH_CHATCATCHER2 = "/wtf"
 
 SlashCmdList["CHATCATCHER"] = function(text)
-	Print("/wts")
-	f:Show()
-	ScrollList_Update()
+	Print("=== WTSpam ===")
+	if not text or text == "" then
+		PanelTemplates_SetTab(f, 1)
+		f:Show()
+		ScrollList_Update()
 
-	if UIFrameIsFlashing(b:GetHighlightTexture()) then
-		UIFrameFlashStop(b:GetHighlightTexture())
-		b:UnlockHighlight()
-	end
-
-	--@do-not-package@
-	-- Purge/Migrate old stuff in DB to the new format
-	local c, t, f, n = 0, 0, 0, 0
-	local tempTable = {}
-	for k, v in pairs(db.IgnoreList) do
-		t = t + 1
-		if v and (v.count or v.firstTime or v.lastTime) then -- Remove unused fields when changing data-structure
-			Print("Purging", k)
-			c = c + 1
-			v.count = nil
-			v.firstTime = nil
-			v.lastTime = nil
+		if UIFrameIsFlashing(b:GetHighlightTexture()) then
+			UIFrameFlashStop(b:GetHighlightTexture())
+			b:UnlockHighlight()
 		end
 
-		if v and type(v.timestamp) == "string" then -- Update timestamps to new format
-			--[[
-			"01.06.21 16:24:30"
-			/dump strsplit(" ", "01.06.21 16:24:30")
-				[1]="01.06.21",
-				[2]="16:24:30"
-			/dump strsplit(".", "01.06.21")
-				[1]="01",
-				[2]="06",
-				[3]="21"
-			/dump strsplit(":", "16:24:30")
-				[1]="16",
-				[2]="24",
-				[3]="30"
-			/dump time({day=tonumber("01"), month=tonumber("06"), year=tonumber("21"), hour=tonumber("16"), min=tonumber("24"), sec=tonumber("30")})
-				^-- This fails, but this works:
-			/dump time({day=tonumber("01"), month=tonumber("06"), year=tonumber("2021"), hour=tonumber("16"), min=tonumber("24"), sec=tonumber("30")})
-			]]--
-			local td, tt = strsplit(" ", v.timestamp)
-			local day, month, year = strsplit(".", td)
-			local hour, min, sec = strsplit(":", tt)
-			local dateTbl = {
-				day = tonumber(day),
-				month = tonumber(month),
-				year = tonumber(#year < 4 and "20" .. year or year),
-				hour = tonumber(hour),
-				min = tonumber(min),
-				sec = tonumber(sec)
-			}
-			-- /dump date("*t", time({day=29, month=05, year=2021, hour=15, min=16, sec=35}))
-			Print("Fixing", k, year, month, day, hour, min, sec, time(dateTbl))
-			v.timestamp = date("*t", time(dateTbl))
-			f = f + 1
+	elseif text and text == "fix" then
+		Print("- Trying to fix DB")
+		local t, pf, rt, rn = 0, 0, 0, 0
+		local tempTable = {}
+		for k, v in pairs(db.IgnoreList) do
+			t = t + 1
+			if v and (v.count or v.firstTime or v.lastTime) then
+				Print("> Purging", k)
+				v.count = nil
+				v.firstTime = nil
+				v.lastTime = nil
+				pf = pf + 1
+			end
+
+			if v and type(v.timestamp) == "string" then
+				--[[
+				"01.06.21 16:24:30"
+				/dump strsplit(" ", "01.06.21 16:24:30")
+					[1]="01.06.21",
+					[2]="16:24:30"
+				/dump strsplit(".", "01.06.21")
+					[1]="01",
+					[2]="06",
+					[3]="21"
+				/dump strsplit(":", "16:24:30")
+					[1]="16",
+					[2]="24",
+					[3]="30"
+				/dump time({day=tonumber("01"), month=tonumber("06"), year=tonumber("21"), hour=tonumber("16"), min=tonumber("24"), sec=tonumber("30")})
+					^-- This fails, but this works:
+				/dump time({day=tonumber("01"), month=tonumber("06"), year=tonumber("2021"), hour=tonumber("16"), min=tonumber("24"), sec=tonumber("30")})
+				]]--
+				local td, tt = strsplit(" ", v.timestamp)
+				local day, month, year = strsplit(".", td)
+				local hour, min, sec = strsplit(":", tt)
+				local dateTbl = {
+					day = tonumber(day),
+					month = tonumber(month),
+					year = tonumber(#year < 4 and "20" .. year or year),
+					hour = tonumber(hour),
+					min = tonumber(min),
+					sec = tonumber(sec)
+				}
+				-- /dump date("*t", time({day=29, month=05, year=2021, hour=15, min=16, sec=35}))
+				Print("> Retiming", k, year, month, day, hour, min, sec, time(dateTbl))
+				v.timestamp = date("*t", time(dateTbl))
+				rt = rt + 1
+			end
+
+			if not strmatch(k, "%-[^|]+") then
+				Print("> Renaming", k)
+				local fullname = v.playerName .. "-MirageRaceway"
+				v.playerName = fullname
+				tempTable[fullname] = deepcopy(v)
+				rn = rn + 1
+			end
+		end
+		if pf > 0 then
+			Print("- Total purges: %d / %d", pf, t)
+		end
+		if rt > 0 then
+			Print("- Total retimes: %d / %d", rt, t)
+		end
+		if rn > 0 then
+			--if rn == t then -- Replace whole list
+			--	db.IgnoreList = deepcopy(tempTable)
+			--else -- Add only changed
+				for k, v in pairs(tempTable) do
+					db.IgnoreList[k] = deepcopy(v)
+					if db.IgnoreList[k] then
+						local nameWithoutRealm = gsub(k, "%-[^|]+", "")
+						db.IgnoreList[nameWithoutRealm] = nil
+					else
+						Print("ERROR RENAMING!")
+					end
+				end
+			--end
+
+			Print("- Total renames: %d / %d", rn, t)
+		end
+		if pf == 0 and rt == 0 and rn == 0 then
+			Print("- Found nothing to be fixed!")
 		end
 
-		if not strmatch(k, "%-[^|]+") then -- Add back stripped Realm-names
-			Print("Renaming", k)
-			local fullname = v.playerName .. "-MirageRaceway"
-			v.playerName = fullname
-			tempTable[fullname] = deepcopy(v)
-			n = n + 1
-		end
 	end
-	if c > 0 then
-		Print("Total purges: %d / %d", c, t)
-	end
-	if f > 0 then
-		Print("Total fixes: %d / %d", f, t)
-	end
-	if n > 0 then
-		db.IgnoreList = deepcopy(tempTable)
-		Print("Total renames: %d / %d", n, t)
-	end
-	--@end-do-not-package@
 end
