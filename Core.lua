@@ -186,7 +186,8 @@ local function ScrollList_Update()
 				local timeframe = math.floor((nameTable[spamTable[lineplusoffset].playerName][#nameTable[spamTable[lineplusoffset].playerName]] - nameTable[spamTable[lineplusoffset].playerName][1]) / 60)
 				local count = #nameTable[spamTable[lineplusoffset].playerName] >= 3 and "|cffff0000" .. #nameTable[spamTable[lineplusoffset].playerName] .. "|r" or #nameTable[spamTable[lineplusoffset].playerName]
 				if spamTable[lineplusoffset].playerName then
-					f["listitem" .. line].text:SetText("|cffffffff" .. count .. "x (" .. timeframe .. "m)|r [".. spamTable[lineplusoffset].channelIndex .."] [|c" .. hex .. spamTable[lineplusoffset].playerName .. "|r] " .. spamTable[lineplusoffset].text)
+					local nameWithoutRealm = gsub(spamTable[lineplusoffset].playerName, "%-[^|]+", "")
+					f["listitem" .. line].text:SetText("|cffffffff" .. count .. "x (" .. timeframe .. "m)|r [".. spamTable[lineplusoffset].channelIndex .."] [|c" .. hex .. nameWithoutRealm .. "|r] " .. spamTable[lineplusoffset].text)
 				else
 					f["listitem" .. line].text:SetText("|cffffffff" .. "?x (" .. timeframe .. "m)|r [".. spamTable[lineplusoffset].channelIndex .."] [|c" .. hex .. "(unnamed)|r] " .. spamTable[lineplusoffset].text)
 				end
@@ -213,11 +214,12 @@ local function ScrollList_Update()
 			lineplusoffset = line + FauxScrollFrame_GetOffset(f.list)
 			if lineplusoffset <= #IgnoreListNameTable then
 				if IgnoreListNameTable[lineplusoffset] then
-					local nameWithoutRealm = IgnoreListNameTable[lineplusoffset]
-					local rPerc, gPerc, bPerc, argbHex = GetClassColor(db.IgnoreList[nameWithoutRealm].class)
+					local fullname = IgnoreListNameTable[lineplusoffset]
+					local nameWithoutRealm = gsub(fullname, "%-[^|]+", "")
+					local rPerc, gPerc, bPerc, argbHex = GetClassColor(db.IgnoreList[fullname].class)
 					hex = argbHex or hex
-					local timestamp = type(db.IgnoreList[nameWithoutRealm].timestamp) == "table" and date("%d.%m.%y %H:%M", time(db.IgnoreList[nameWithoutRealm].timestamp)) or "!" .. db.IgnoreList[nameWithoutRealm].timestamp .. "!"
-					f["listitem" .. line].text:SetText("|cffffffff" .. timestamp .."|r [".. db.IgnoreList[nameWithoutRealm].channelIndex .."] [|c" .. hex .. nameWithoutRealm .. "|r] " .. db.IgnoreList[nameWithoutRealm].text)
+					local timestamp = type(db.IgnoreList[fullname].timestamp) == "table" and date("%d.%m.%y %H:%M", time(db.IgnoreList[fullname].timestamp)) or "!" .. db.IgnoreList[fullname].timestamp .. "!"
+					f["listitem" .. line].text:SetText("|cffffffff" .. timestamp .."|r [".. db.IgnoreList[fullname].channelIndex .."] [|c" .. hex .. nameWithoutRealm .. "|r] " .. db.IgnoreList[fullname].text)
 				else
 					local timestamp = db.IgnoreList[IgnoreListNameTable[lineplusoffset]] and date("%d.%m.%y %H:%M:%S", db.IgnoreList[IgnoreListNameTable[lineplusoffset]].timestamp) or "!ERROR!"
 					local channelIndex = db.IgnoreList[IgnoreListNameTable[lineplusoffset]] and db.IgnoreList[IgnoreListNameTable[lineplusoffset]].channelIndex or "!ERROR!"
@@ -235,7 +237,7 @@ local function ScrollList_Update()
 		FauxScrollFrame_Update(f.list, #IgnoreListNameTable, 20, 16)
 	end
 
-	local startPoint = stopPoint > 0 and entryOffset + 1 or entryOffset
+	local startPoint = totalPoint == 0 and 0 or stopPoint > 0 and entryOffset + 1 or entryOffset
 	f.count:SetText("Showing " .. startPoint .. " - " .. stopPoint .. " / " .. totalPoint)
 end
 
@@ -388,7 +390,8 @@ b:SetScript("OnClick", function(this, button, down)
 end)
 
 local function filterFunction(self, event, msg, author, ...)
-	if event == "CHAT_MSG_CHANNEL" then		
+	if event == "CHAT_MSG_CHANNEL" then
+		--local nameWithoutRealm = gsub(author, "%-[^|]+", "")
 		if db.IgnoreList[author] then -- We found baddie, let's filter it
 			return true
 		end
@@ -413,19 +416,19 @@ ChatCatcher:SetScript("OnEvent", function(self, event, ...)
 		ChatFrame_AddMessageEventFilter("CHAT_MSG_CHANNEL", filterFunction) -- Let's filter
 
 	elseif event == "CHAT_MSG_CHANNEL" then
-		local text, playerName, languageName, channelName, playerName2, specialFlags, zoneChannelID, channelIndex, channelBaseName, unused, lineID, guid, bnSenderID, isMobile, isSubtitle, hideSenderInLetterbox, supressRaidIcons = ...
+		local msg, author, languageName, channelName, targetName, specialFlags, zoneChannelID, channelIndex, channelBaseName, unused, lineID, guid, bnSenderID, isMobile, isSubtitle, hideSenderInLetterbox, supressRaidIcons = ...
 
 		if channelIndex == 4 then
-			local nameWithoutRealm = gsub(playerName, "%-[^|]+", "")
+			local nameWithoutRealm = gsub(author, "%-[^|]+", "")
 
 			if whitelistNameTable[nameWithoutRealm] then return end -- Whitelisted name (incase your friend is promoting boosts, you don't want to list your friends)
 
-			if whitelistTable[nameWithoutRealm] and whitelistTable[nameWithoutRealm] == text then -- Previously whitelisted line
+			if whitelistTable[author] and whitelistTable[author] == msg then -- Previously whitelisted line
 				if DEBUG then Debug("whitelistTable HIT:", nameWithoutRealm) end
 				
-			elseif strfind(strlower(text), wtsMatch) or (strfind(text, goldMatch) and strfind(strlower(text), boostMatch)) then -- Matched new hit [wts] or [gold and boost]
-				if not (nameTable[nameWithoutRealm] or db.IgnoreList[nameWithoutRealm]) then -- No previous match for this hit
-					--if DEBUG then Debug(">", playerName, channelName, zoneChannelID, channelIndex, channelBaseName, lineID) end
+			elseif strfind(strlower(msg), wtsMatch) or (strfind(msg, goldMatch) and strfind(strlower(msg), boostMatch)) then -- Matched new hit [wts] or [gold and boost]
+				if not (nameTable[author] or db.IgnoreList[author]) then -- No previous match for this hit
+					--if DEBUG then Debug(">", author, channelName, zoneChannelID, channelIndex, channelBaseName, lineID) end
 					--[04:08] SanexDeving: > Gauzz-MirageRaceway 4. LookingForGroup 26 4 LookingForGroup 7141
 
 					local class
@@ -438,8 +441,8 @@ ChatCatcher:SetScript("OnEvent", function(self, event, ...)
 
 					local timeTable = date("*t")
 					local unixTime = time()
-					spamTable[#spamTable + 1] = { channelIndex=channelIndex, channelName=channelName, timestamp=timeTable, class=class, playerName=nameWithoutRealm, text=text }
-					nameTable[nameWithoutRealm] = { unixTime }
+					spamTable[#spamTable + 1] = { channelIndex=channelIndex, channelName=channelName, timestamp=timeTable, class=class, playerName=author, text=msg }
+					nameTable[author] = { unixTime }
 					b:SetText("WTSpam: " .. #spamTable)
 					if ANNOUNCE then Debug("NEW HIT - spamTable:", #spamTable) end
 
@@ -454,13 +457,13 @@ ChatCatcher:SetScript("OnEvent", function(self, event, ...)
 
 				else -- Previously matched hit
 					local unixTime = time()
-					if nameTable[nameWithoutRealm] then
-						nameTable[nameWithoutRealm][#nameTable[nameWithoutRealm] + 1] = unixTime
+					if nameTable[author] then
+						nameTable[author][#nameTable[author] + 1] = unixTime
 
-						if ANNOUNCE then Debug("Timer:", _round((unixTime - nameTable[nameWithoutRealm][#nameTable[nameWithoutRealm]]) / 60, 2), #nameTable[nameWithoutRealm]) end
+						if ANNOUNCE then Debug("Timer:", _round((unixTime - nameTable[author][#nameTable[author]]) / 60, 2), #nameTable[author]) end
 
 					end
-					if ANNOUNCE then Debug("Old HIT:", nameWithoutRealm, nameTable[nameWithoutRealm] and #nameTable[nameWithoutRealm] or "!0!", db.IgnoreList[nameWithoutRealm] and "true" or "false") end
+					if ANNOUNCE then Debug("Old HIT:", nameWithoutRealm, nameTable[author] and #nameTable[author] or "!0!", db.IgnoreList[author] and "true" or "false") end
 
 					if f:IsShown() then
 						ScrollList_Update()
@@ -487,10 +490,11 @@ SlashCmdList["CHATCATCHER"] = function(text)
 
 	--@do-not-package@
 	-- Purge/Migrate old stuff in DB to the new format
-	local c, t, f = 0, 0, 0
+	local c, t, f, n = 0, 0, 0, 0
+	local tempTable = {}
 	for k, v in pairs(db.IgnoreList) do
 		t = t + 1
-		if v and (v.count or v.firstTime or v.lastTime) then
+		if v and (v.count or v.firstTime or v.lastTime) then -- Remove unused fields when changing data-structure
 			Print("Purging", k)
 			c = c + 1
 			v.count = nil
@@ -498,7 +502,7 @@ SlashCmdList["CHATCATCHER"] = function(text)
 			v.lastTime = nil
 		end
 
-		if v and type(v.timestamp) == "string" then
+		if v and type(v.timestamp) == "string" then -- Update timestamps to new format
 			--[[
 			"01.06.21 16:24:30"
 			/dump strsplit(" ", "01.06.21 16:24:30")
@@ -532,12 +536,24 @@ SlashCmdList["CHATCATCHER"] = function(text)
 			v.timestamp = date("*t", time(dateTbl))
 			f = f + 1
 		end
+
+		if not strmatch(k, "%-[^|]+") then -- Add back stripped Realm-names
+			Print("Renaming", k)
+			local fullname = v.playerName .. "-MirageRaceway"
+			v.playerName = fullname
+			tempTable[fullname] = deepcopy(v)
+			n = n + 1
+		end
 	end
 	if c > 0 then
 		Print("Total purges: %d / %d", c, t)
 	end
 	if f > 0 then
 		Print("Total fixes: %d / %d", f, t)
+	end
+	if n > 0 then
+		db.IgnoreList = deepcopy(tempTable)
+		Print("Total renames: %d / %d", n, t)
 	end
 	--@end-do-not-package@
 end
