@@ -9,6 +9,7 @@
 	[22:44] [4] [Ajaxthegreat]: LF1M SM BOOST cath+arm 15g a reset 
 ]]--
 local ADDON_NAME, ns = ...
+local DEBUG, ANNOUNCE, FLASHING = false, false, false
 
 local function Debug(text, ...)
 	if text then
@@ -55,12 +56,12 @@ local function deepcopy(orig) -- http://lua-users.org/wiki/CopyTable
 end
 
 local db, f, b
-local DEBUG, ANNOUNCE, FLASHING = false, false, false
 local strfind, strlower = strfind, strlower
 local wtsMatch = "wts"
 local wtbMatch = "wtb"
 local goldMatch = "%d+%s?g"
 local boostMatch = "boost"
+local normalizedRealmName
 local spamTable, nameTable, whitelistTable = {}, {}, {}
 local whitelistNameTable = {
 	-- Put your friends booster characters here
@@ -338,7 +339,7 @@ f.ignore:SetFrameStrata("FULLSCREEN")
 f.ignore:SetScript("OnClick", function(this, button, down)
 	local fullname = spamTable[f.selectedEntry] and spamTable[f.selectedEntry].playerName or false
 	if not strmatch(fullname, "%-[^|]+") then -- Check Realmname is part of the name
-		fullname = fullname .. "-MirageRaceway"
+		fullname = fullname .. "-" .. normalizedRealmName
 	end
 	if fullname and f.selectedEntry > 0 and f.selectedEntry <= #spamTable then
 		if DEBUG then Debug("Ignore:", fullname) end
@@ -425,22 +426,30 @@ ChatCatcher:SetScript("OnEvent", function(self, event, ...)
 		self:RegisterEvent("PLAYER_LOGIN")
 
 	elseif event == "PLAYER_LOGIN" then
+		normalizedRealmName = GetNormalizedRealmName()
 		ChatFrame_AddMessageEventFilter("CHAT_MSG_CHANNEL", filterFunction) -- Let's filter
 
 	elseif event == "CHAT_MSG_CHANNEL" then
 		local msg, author, languageName, channelName, targetName, specialFlags, zoneChannelID, channelIndex, channelBaseName, unused, lineID, guid, bnSenderID, isMobile, isSubtitle, hideSenderInLetterbox, supressRaidIcons = ...
 
 		if channelIndex == 4 then
-			local nameWithoutRealm = gsub(author, "%-[^|]+", "")
+			local fullname, nameWithoutRealm
+			if strmatch(author, "%-[^|]+") then
+				fullname = author
+				nameWithoutRealm = gsub(author, "%-[^|]+", "")
+			else
+				fullname = author .. "-" .. normalizedRealmName
+				nameWithoutRealm = author
+			end
 
 			if whitelistNameTable[nameWithoutRealm] then return end -- Whitelisted name (incase your friend is promoting boosts, you don't want to list your friends)
 
-			if whitelistTable[author] and whitelistTable[author] == msg then -- Previously whitelisted line
+			if whitelistTable[fullname] and whitelistTable[fullname] == msg then -- Previously whitelisted line
 				if DEBUG then Debug("whitelistTable HIT:", nameWithoutRealm) end
 				
 			elseif strfind(strlower(msg), wtsMatch) or (strfind(msg, goldMatch) and strfind(strlower(msg), boostMatch)) then -- Matched new hit [wts] or [gold and boost]
-				if not (nameTable[author] or db.IgnoreList[author]) then -- No previous match for this hit
-					--if DEBUG then Debug(">", author, channelName, zoneChannelID, channelIndex, channelBaseName, lineID) end
+				if not (nameTable[fullname] or db.IgnoreList[fullname]) then -- No previous match for this hit
+					--if DEBUG then Debug(">", fullname, channelName, zoneChannelID, channelIndex, channelBaseName, lineID) end
 					--[04:08] SanexDeving: > Gauzz-MirageRaceway 4. LookingForGroup 26 4 LookingForGroup 7141
 
 					local class
@@ -453,10 +462,10 @@ ChatCatcher:SetScript("OnEvent", function(self, event, ...)
 
 					local timeTable = date("*t")
 					local unixTime = time()
-					spamTable[#spamTable + 1] = { channelIndex=channelIndex, channelName=channelName, timestamp=timeTable, class=class, playerName=author, text=msg }
-					nameTable[author] = { unixTime }
+					spamTable[#spamTable + 1] = { channelIndex=channelIndex, channelName=channelName, timestamp=timeTable, class=class, playerName=fullname, text=msg }
+					nameTable[fullname] = { unixTime }
 					b:SetText("WTSpam: " .. #spamTable)
-					if ANNOUNCE then Debug("NEW HIT - spamTable:", #spamTable) end
+					if ANNOUNCE then Debug("NEW HIT - spamTable:", #spamTable, fullname) end
 
 					if f:IsShown() then
 						ScrollList_Update()
@@ -469,13 +478,13 @@ ChatCatcher:SetScript("OnEvent", function(self, event, ...)
 
 				else -- Previously matched hit
 					local unixTime = time()
-					if nameTable[author] then
-						nameTable[author][#nameTable[author] + 1] = unixTime
+					if nameTable[fullname] then
+						nameTable[fullname][#nameTable[fullname] + 1] = unixTime
 
-						if ANNOUNCE then Debug("Timer:", _round((unixTime - nameTable[author][#nameTable[author]]) / 60, 2), #nameTable[author]) end
+						if ANNOUNCE then Debug("Timer:", _round((unixTime - nameTable[fullname][#nameTable[fullname]]) / 60, 2), #nameTable[fullname]) end
 
 					end
-					if ANNOUNCE then Debug("Old HIT:", nameWithoutRealm, nameTable[author] and #nameTable[author] or "!0!", db.IgnoreList[author] and "true" or "false") end
+					if ANNOUNCE then Debug("Old HIT:", fullname, nameTable[fullname] and #nameTable[fullname] or "!0!", db.IgnoreList[fullname] and "true" or "false") end
 
 					if f:IsShown() then
 						ScrollList_Update()
@@ -553,7 +562,7 @@ SlashCmdList["CHATCATCHER"] = function(text)
 
 			if not strmatch(k, "%-[^|]+") then
 				Print("> Renaming", k)
-				local fullname = v.playerName .. "-MirageRaceway"
+				local fullname = v.playerName .. "-" .. normalizedRealmName
 				v.playerName = fullname
 				tempTable[fullname] = deepcopy(v)
 				rn = rn + 1
