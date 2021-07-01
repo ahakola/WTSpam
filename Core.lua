@@ -307,25 +307,31 @@ f.remove:SetScript("OnClick", function(this, button, down)
 
 	if selectedTab == 1 then
 		local fullname = spamTable[f.selectedEntry] and spamTable[f.selectedEntry].playerName or false
+		local nameWithoutRealm = fullname and gsub(fullname, "%-[^|]+", "") or "!NOBODY!"
+		local _, _, _, argbHex = spamTable[f.selectedEntry] and GetClassColor(spamTable[f.selectedEntry].class) or GetClassColor("PRIEST")
 		if fullname and f.selectedEntry > 0 and f.selectedEntry <= #spamTable then
 			if DEBUG then Debug("Remove:", fullname) end
 			whitelistTable[fullname] = spamTable[f.selectedEntry].text -- Put in whitelistTable to prevent later hits with same line
 			tremove(spamTable, f.selectedEntry)
 			nameTable[fullname] = false
 			f.selectedEntry = f.selectedEntry > 1 and f.selectedEntry - 1 or (#spamTable > 0 and f.selectedEntry or 0)
+			Print("Pardoned |c%s%s|r.", argbHex, nameWithoutRealm)
 		else
-			if DEBUG then Debug("Error Removing") end
+			if DEBUG then Debug("Error Removing %s!", nameWithoutRealm) end
 		end
 	elseif selectedTab == 2 then
 		if DEBUG then Debug("Clicking Remove Tab 2") end
 		local fullname = db.IgnoreList[IgnoreListNameTable[f.selectedEntry]] and db.IgnoreList[IgnoreListNameTable[f.selectedEntry]].playerName or false
+		local nameWithoutRealm = fullname and gsub(fullname, "%-[^|]+", "") or "!NOBODY!"
+		local _, _, _, argbHex = db.IgnoreList[IgnoreListNameTable[f.selectedEntry]] and GetClassColor(db.IgnoreList[IgnoreListNameTable[f.selectedEntry]].class) or GetClassColor("PRIEST")
 		if fullname and f.selectedEntry > 0 and f.selectedEntry <= #IgnoreListNameTable then
 			if DEBUG then Debug("Remove 2:", fullname) end
 			tremove(IgnoreListNameTable, f.selectedEntry)
 			db.IgnoreList[fullname] = nil
 			f.selectedEntry = f.selectedEntry > 1 and f.selectedEntry - 1 or (#IgnoreListNameTable > 0 and f.selectedEntry or 0)
+			Print("Pardoned |c%s%s|r.", argbHex, nameWithoutRealm)
 		else
-			if DEBUG then Debug("Error Removing 2") end
+			if DEBUG then Debug("Error Removing 2 %s!", nameWithoutRealm) end
 		end
 	end
 	ScrollList_Update()
@@ -341,16 +347,19 @@ f.ignore:SetScript("OnClick", function(this, button, down)
 	if not strmatch(fullname, "%-[^|]+") then -- Check Realmname is part of the name
 		fullname = fullname .. "-" .. normalizedRealmName
 	end
+	local nameWithoutRealm = fullname and gsub(fullname, "%-[^|]+", "") or "!NOBODY!"
+	local _, _, _, argbHex = spamTable[f.selectedEntry] and GetClassColor(spamTable[f.selectedEntry].class) or GetClassColor("PRIEST")
 	if fullname and f.selectedEntry > 0 and f.selectedEntry <= #spamTable then
 		if DEBUG then Debug("Ignore:", fullname) end
 		db.IgnoreList[fullname] = deepcopy(spamTable[f.selectedEntry]) -- Save to DB
 		tremove(spamTable, f.selectedEntry)
 		nameTable[fullname] = false
 		f.selectedEntry = f.selectedEntry > 1 and f.selectedEntry - 1 or (#spamTable > 0 and f.selectedEntry or 0)
+		Print("Adding |c%s%s|r to the filter.", argbHex, nameWithoutRealm)
 
 		if DEBUG then Debug("Check:", db.IgnoreList[fullname] and db.IgnoreList[fullname].text or "!!!No entry!!!") end
 	else
-		if DEBUG then Debug("Error Ignoring") end
+		if DEBUG then Debug("Error Ignoring %s!", nameWithoutRealm) end
 	end
 	ScrollList_Update()
 	b:SetText("WTSpam: " .. #spamTable)
