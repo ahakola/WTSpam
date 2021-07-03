@@ -308,8 +308,8 @@ f.remove:SetScript("OnClick", function(this, button, down)
 	if selectedTab == 1 then
 		local fullname = spamTable[f.selectedEntry] and spamTable[f.selectedEntry].playerName or false
 		local nameWithoutRealm = fullname and gsub(fullname, "%-[^|]+", "") or "!NOBODY!"
-		local _, _, _, argbHex = spamTable[f.selectedEntry] and GetClassColor(spamTable[f.selectedEntry].class) or GetClassColor("PRIEST")
 		if fullname and f.selectedEntry > 0 and f.selectedEntry <= #spamTable then
+			local _, _, _, argbHex = GetClassColor(spamTable[f.selectedEntry].class)
 			if DEBUG then Debug("Remove:", fullname) end
 			whitelistTable[fullname] = spamTable[f.selectedEntry].text -- Put in whitelistTable to prevent later hits with same line
 			tremove(spamTable, f.selectedEntry)
@@ -323,8 +323,8 @@ f.remove:SetScript("OnClick", function(this, button, down)
 		if DEBUG then Debug("Clicking Remove Tab 2") end
 		local fullname = db.IgnoreList[IgnoreListNameTable[f.selectedEntry]] and db.IgnoreList[IgnoreListNameTable[f.selectedEntry]].playerName or false
 		local nameWithoutRealm = fullname and gsub(fullname, "%-[^|]+", "") or "!NOBODY!"
-		local _, _, _, argbHex = db.IgnoreList[IgnoreListNameTable[f.selectedEntry]] and GetClassColor(db.IgnoreList[IgnoreListNameTable[f.selectedEntry]].class) or GetClassColor("PRIEST")
 		if fullname and f.selectedEntry > 0 and f.selectedEntry <= #IgnoreListNameTable then
+			local _, _, _, argbHex = GetClassColor(db.IgnoreList[IgnoreListNameTable[f.selectedEntry]].class)
 			if DEBUG then Debug("Remove 2:", fullname) end
 			tremove(IgnoreListNameTable, f.selectedEntry)
 			db.IgnoreList[fullname] = nil
@@ -348,8 +348,8 @@ f.ignore:SetScript("OnClick", function(this, button, down)
 		fullname = fullname .. "-" .. normalizedRealmName
 	end
 	local nameWithoutRealm = fullname and gsub(fullname, "%-[^|]+", "") or "!NOBODY!"
-	local _, _, _, argbHex = spamTable[f.selectedEntry] and GetClassColor(spamTable[f.selectedEntry].class) or GetClassColor("PRIEST")
 	if fullname and f.selectedEntry > 0 and f.selectedEntry <= #spamTable then
+		local _, _, _, argbHex = GetClassColor(spamTable[f.selectedEntry].class)
 		if DEBUG then Debug("Ignore:", fullname) end
 		db.IgnoreList[fullname] = deepcopy(spamTable[f.selectedEntry]) -- Save to DB
 		tremove(spamTable, f.selectedEntry)
