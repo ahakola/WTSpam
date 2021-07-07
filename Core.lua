@@ -287,7 +287,8 @@ for i = 1, 20 do
 		local text = this.text:GetText() or "Fail!"
 
 		GameTooltip:SetOwner(this, "ANCHOR_BOTTOM", 0, -10)
-		GameTooltip:SetText(text)
+		--GameTooltip:SetText(text)
+		GameTooltip:AddLine(text, 1, .95, .95, true) -- R, G, B, Wrap text
 		GameTooltip:Show()
 	end)
 	f["listitem" .. i]:SetScript("OnLeave", function(this)
