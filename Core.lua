@@ -55,7 +55,13 @@ local function deepcopy(orig) -- http://lua-users.org/wiki/CopyTable
 	return copy
 end
 
-local db, f, b
+-- Libs for DataBroker and DBIcon
+local LDB = LibStub("LibDataBroker-1.1")
+local LDI = LibStub("LibDBIcon-1.0")
+
+-- Your usual upvalues
+local db, f, dataBrokerDataObj, count --b
+local LDBColorString = "ff0000"
 local strfind, strlower = strfind, strlower
 local wtsMatch = "wts"
 local wtbMatch = "wtb"
@@ -336,7 +342,16 @@ f.remove:SetScript("OnClick", function(this, button, down)
 		end
 	end
 	ScrollList_Update()
-	b:SetText("WTSpam: " .. #spamTable)
+	--b:SetText("WTSpam: " .. #spamTable)
+	dataBrokerDataObj.text = string.format("WTSpam: |cff%s%d|r", LDBColorString, #spamTable)
+	if LDI:IsRegistered(ADDON_NAME) then
+		count:SetText(#spamTable)
+		if #spamTable == 0 then
+			count:Hide()
+		else
+			count:Show()
+		end
+	end
 end)
 f.remove:Hide()
 
@@ -363,7 +378,16 @@ f.ignore:SetScript("OnClick", function(this, button, down)
 		if DEBUG then Debug("Error Ignoring %s!", nameWithoutRealm) end
 	end
 	ScrollList_Update()
-	b:SetText("WTSpam: " .. #spamTable)
+	--b:SetText("WTSpam: " .. #spamTable)
+	dataBrokerDataObj.text = string.format("WTSpam: |cff%s%d|r", LDBColorString, #spamTable)
+	if LDI:IsRegistered(ADDON_NAME) then
+		count:SetText(#spamTable)
+		if #spamTable == 0 then
+			count:Hide()
+		else
+			count:Show()
+		end
+	end
 end)
 f.ignore:Hide()
 
@@ -393,6 +417,7 @@ PanelTemplates_SetNumTabs(f, 2)
 PanelTemplates_SetTab(f, 1)
 
 -- (9)
+--[[
 b = CreateFrame("Button", "ChatCatcherButton", UIParent, "UIPanelButtonTemplate")
 b:SetSize(120, 36)
 b:SetPoint("BOTTOM", -330, 5)
@@ -411,6 +436,40 @@ b:SetScript("OnClick", function(this, button, down)
 		end
 	end
 end)
+]]
+
+--local dataBrokerDataObj = LDB:NewDataObject(ADDON_NAME, {
+dataBrokerDataObj = LDB:NewDataObject(ADDON_NAME, {
+	type = "data source",
+	text = string.format("WTSpam: |cff%s%d|r", LDBColorString, #spamTable),
+	icon = 132352, -- Burning Rage
+	OnClick = function()
+		if f:IsShown() then
+			f:Hide()
+		else
+			PanelTemplates_SetTab(f, 1)
+			f:Show()
+			ScrollList_Update()
+
+			--if UIFrameIsFlashing(b:GetHighlightTexture()) then
+			--	UIFrameFlashStop(b:GetHighlightTexture())
+			--	b:UnlockHighlight()
+			--end
+			if LDI:IsRegistered(ADDON_NAME) then
+				local minimapButton = LDI:GetMinimapButton(ADDON_NAME)
+				
+				if UIFrameIsFlashing(minimapButton:GetHighlightTexture()) then
+					--Debug("minimapButton flashing -> Stop Flash")
+					UIFrameFlashStop(minimapButton:GetHighlightTexture())
+					minimapButton:UnlockHighlight()
+				end
+			end
+		end
+	end,
+	OnTooltipShow = function(self)
+		self:AddLine(string.format("WTSpam: |cff%s%d|r", LDBColorString, #spamTable))
+	end,
+})
 
 local function filterFunction(self, event, msg, author, ...)
 	if event == "CHAT_MSG_CHANNEL" then
@@ -430,6 +489,20 @@ ChatCatcher:SetScript("OnEvent", function(self, event, ...)
 		WTSpamDB = WTSpamDB or {}
 		db = WTSpamDB
 		db.IgnoreList = db.IgnoreList or {}
+		db.Minimap = db.Minimap or { ["minimapPos"] = 135, ["hide"] = false }
+
+		LDI:Register(ADDON_NAME, dataBrokerDataObj, db.Minimap)
+		if LDI:IsRegistered(ADDON_NAME) then
+			local minimapButton = LDI:GetMinimapButton(ADDON_NAME)
+			count = minimapButton:CreateFontString(nil, "OVERLAY", "NumberFontNormalLarge")
+			count:SetText(#spamTable)
+			count:SetPoint("CENTER", minimapButton.icon, 1, -1)
+			if #spamTable == 0 then
+				count:Hide()
+			else
+				count:Show()
+			end
+		end
 
 		self:UnregisterEvent(event)
 		self:RegisterEvent("CHAT_MSG_CHANNEL")
@@ -458,6 +531,7 @@ ChatCatcher:SetScript("OnEvent", function(self, event, ...)
 				if DEBUG then Debug("whitelistTable HIT:", nameWithoutRealm) end
 				
 			elseif strfind(strlower(msg), wtsMatch) or (strfind(msg, goldMatch) and strfind(strlower(msg), boostMatch)) then -- Matched new hit [wts] or [gold and boost]
+			--or strfind(strlower(msg), "lf%d?m") then -- Debug LFM/LF?M
 				if not (nameTable[fullname] or db.IgnoreList[fullname]) then -- No previous match for this hit
 					--if DEBUG then Debug(">", fullname, channelName, zoneChannelID, channelIndex, channelBaseName, lineID) end
 					--[04:08] SanexDeving: > Gauzz-MirageRaceway 4. LookingForGroup 26 4 LookingForGroup 7141
@@ -474,15 +548,35 @@ ChatCatcher:SetScript("OnEvent", function(self, event, ...)
 					local unixTime = time()
 					spamTable[#spamTable + 1] = { channelIndex=channelIndex, channelName=channelName, timestamp=timeTable, class=class, playerName=fullname, text=msg }
 					nameTable[fullname] = { unixTime }
-					b:SetText("WTSpam: " .. #spamTable)
+					--b:SetText("WTSpam: " .. #spamTable)
+					dataBrokerDataObj.text = string.format("WTSpam: |cff%s%d|r", LDBColorString, #spamTable)
+					if LDI:IsRegistered(ADDON_NAME) then
+						count:SetText(#spamTable)
+						if #spamTable == 0 then
+							count:Hide()
+						else
+							count:Show()
+						end
+					end
+
 					if ANNOUNCE then Debug("NEW HIT - spamTable:", #spamTable, fullname) end
 
 					if f:IsShown() then
 						ScrollList_Update()
 					else -- HEY YO! LOOK AT ME!
 						if FLASHING then
-							UIFrameFlash(b:GetHighlightTexture(), 1, 1, -1, false, .5, .5, ADDON_NAME)
-							b:LockHighlight()
+							--UIFrameFlash(b:GetHighlightTexture(), 1, 1, -1, false, .5, .5, ADDON_NAME)
+							--b:LockHighlight()
+
+							if LDI:IsRegistered(ADDON_NAME) then
+								local minimapButton = LDI:GetMinimapButton(ADDON_NAME)
+
+								if not UIFrameIsFlashing(minimapButton:GetHighlightTexture()) then
+									--Debug("minimapButton -> Start Flash")
+									UIFrameFlash(minimapButton:GetHighlightTexture(), 1, 1, -1, false, .5, .5, ADDON_NAME)
+									minimapButton:LockHighlight()
+								end
+							end
 						end
 					end
 
@@ -516,9 +610,17 @@ SlashCmdList["CHATCATCHER"] = function(text)
 		f:Show()
 		ScrollList_Update()
 
-		if UIFrameIsFlashing(b:GetHighlightTexture()) then
-			UIFrameFlashStop(b:GetHighlightTexture())
-			b:UnlockHighlight()
+		--if UIFrameIsFlashing(b:GetHighlightTexture()) then
+		--	UIFrameFlashStop(b:GetHighlightTexture())
+		--	b:UnlockHighlight()
+		--end
+		if LDI:IsRegistered(ADDON_NAME) then
+			local minimapButton = LDI:GetMinimapButton(ADDON_NAME)
+			
+			if UIFrameIsFlashing(minimapButton:GetHighlightTexture()) then
+				UIFrameFlashStop(minimapButton:GetHighlightTexture())
+				minimapButton:UnlockHighlight()
+			end
 		end
 
 	elseif text and text == "fix" then
@@ -604,6 +706,13 @@ SlashCmdList["CHATCATCHER"] = function(text)
 		if pf == 0 and rt == 0 and rn == 0 then
 			Print("- Found nothing to be fixed!")
 		end
+
+	elseif text and text == "list" then
+		Debug("- List:")
+		for k, v in pairs(whitelistTable) do
+			Debug("   |cffffcc00[|r%s|cffffcc00]|r -> |cffffcc00[|r%s|cffffcc00]|r", tostring(k), tostring(v))
+		end
+		Debug("- List End")
 
 	end
 end
