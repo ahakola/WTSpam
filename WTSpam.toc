@@ -1,7 +1,7 @@
-## Interface: 20504
-## Interface-Classic: 11500
+## Interface: 30403
+## Interface-Classic: 11501
 ## Interface-BCC: 20504
-## Interface-Wrath: 30400
+## Interface-Wrath: 30403
 ## Author: Gogh (Mirage Raceway EU) (BCClassic)
 ## Title: WTSpam
 ## Version: @project-version@
