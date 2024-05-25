@@ -32,3 +32,8 @@ jobs:
         uses: BigWigsMods/packager@v2
         with:
           args: -g classic
+
+      - name: Create CataClassic Package
+        uses: BigWigsMods/packager@v2
+        with:
+          args: -g cata
