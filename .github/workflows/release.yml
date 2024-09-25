@@ -18,22 +18,5 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create WrathClassic Package
+      - name: Create Package
         uses: BigWigsMods/packager@v2
-        with:
-          args: -g wrath
-
-      - name: Create BCClassic Package
-        uses: BigWigsMods/packager@v2
-        with:
-          args: -g bcc
-
-      - name: Create Classic Package
-        uses: BigWigsMods/packager@v2
-        with:
-          args: -g classic
-
-      - name: Create CataClassic Package
-        uses: BigWigsMods/packager@v2
-        with:
-          args: -g cata
